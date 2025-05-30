@@ -252,6 +252,18 @@
     </div>
 
     <script>
+        // Fallback for crypto.randomUUID() for older browsers (though widely supported now)
+        function generateUUID() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                return crypto.randomUUID();
+            }
+            // Fallback for older browsers
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
         // --- Quiz Questions Data ---
         const allQuestions = [
             // Design Thinking (approx. 33 questions)
@@ -621,7 +633,7 @@
 
         function saveScoreForSharing() {
             // SIMULATED: Generate a unique ID and save to localStorage
-            currentShareId = crypto.randomUUID();
+            currentShareId = generateUUID();
             const sharedScores = JSON.parse(localStorage.getItem('sharedQuizScores') || '{}');
             sharedScores[currentShareId] = {
                 sharerName: userName,
@@ -732,6 +744,11 @@
 
         // Initial check for challenge in URL when the page loads
         window.addEventListener('load', checkChallengeInUrl);
+
+        // --- Event Listeners ---
+        startButton.addEventListener('click', startGame);
+        startChallengeButton.addEventListener('click', startGame); // Use the same start game logic
+        restartButton.addEventListener('click', resetQuiz);
 
     </script>
 </body>
