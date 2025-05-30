@@ -251,53 +251,7 @@
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Global variables for Firebase (MUST BE USED)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        let app;
-        let db;
-        let auth;
-        let currentUserId = null;
-
-        // Initialize Firebase and authenticate
-        async function initFirebase() {
-            try {
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        currentUserId = user.uid;
-                        console.log("Firebase authenticated. User ID:", currentUserId);
-                        // Once authenticated, check for challenge in URL
-                        checkChallengeInUrl();
-                    } else {
-                        console.log("No user signed in. Attempting anonymous sign-in.");
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error("Error initializing Firebase or authenticating:", error);
-                // Display a user-friendly message instead of alert
-                showModalMessage("Error: Could not connect to the quiz service. Please try again later.");
-            }
-        }
-
-        // Call Firebase initialization on window load
-        window.addEventListener('load', initFirebase);
-
+    <script>
         // --- Quiz Questions Data ---
         const allQuestions = [
             // Design Thinking (approx. 33 questions)
@@ -412,7 +366,7 @@
         let score = 0;
         const totalQuestionsPerSession = 20;
         let userName = "Guest"; // Default name
-        let currentShareId = null; // To store the ID of the shared score if generated
+        let currentShareId = null; // To store the ID of the shared score
         let challengedShareId = null; // ID of the score being challenged
         let challengedSharerName = null;
         let challengedSharerScore = null;
@@ -469,7 +423,6 @@
         }
 
         function showModalMessage(message) {
-            // Simple modal implementation (replace alert)
             const modal = document.createElement('div');
             modal.classList.add('fixed', 'inset-0', 'bg-gray-800', 'bg-opacity-75', 'flex', 'items-center', 'justify-center', 'z-50');
             modal.innerHTML = `
@@ -515,21 +468,18 @@
         function displayQuestion() {
             if (currentQuestionIndex < totalQuestionsPerSession) {
                 const question = questionsToAsk[currentQuestionIndex];
-                // Get the correct answer text from the original question object
                 const correctAnswerText = question.options[question.correctAnswer];
 
-                // Create a *copy* of the options array and shuffle it for display
                 const shuffledOptions = [...question.options];
                 shuffleArray(shuffledOptions);
 
                 questionText.textContent = question.question;
                 optionsContainer.innerHTML = ''; // Clear previous options
 
-                shuffledOptions.forEach((optionText) => { // 'optionText' is the text from the shuffled array
+                shuffledOptions.forEach((optionText) => {
                     const button = document.createElement('button');
                     button.classList.add('option-button', 'block', 'w-full', 'py-3', 'px-4', 'rounded-xl', 'text-lg', 'font-medium', 'transition-all', 'duration-200', 'ease-in-out');
                     button.textContent = optionText;
-                    // Pass the button element and the correct answer text for comparison
                     button.onclick = () => selectAnswer(button, correctAnswerText);
                     optionsContainer.appendChild(button);
                 });
@@ -551,7 +501,7 @@
             }
         }
 
-        function selectAnswer(selectedButton, correctAnswerText) { // Now receives the selected button element and the correct answer text
+        function selectAnswer(selectedButton, correctAnswerText) {
             const buttons = optionsContainer.querySelectorAll('.option-button');
             let isCorrect = false;
 
@@ -559,12 +509,12 @@
                 button.classList.add('disabled'); // Disable all buttons after selection
                 button.onclick = null; // Remove click listener
 
-                if (button.textContent === correctAnswerText) { // Compare button's text content with the correct answer text
+                if (button.textContent === correctAnswerText) {
                     button.classList.add('correct');
-                    if (button === selectedButton) { // If the clicked button is the correct one
+                    if (button === selectedButton) {
                         isCorrect = true;
                     }
-                } else if (button === selectedButton) { // If the clicked button is not the correct one
+                } else if (button === selectedButton) {
                     button.classList.add('incorrect');
                 }
             });
@@ -634,30 +584,28 @@
                 }
                 challengeOutcomeMessage.textContent = outcomeText;
 
-                // Record the challenge attempt in Firestore
+                // SIMULATED: Record the challenge attempt in localStorage
                 try {
-                    const sharedScoreRef = doc(db, `artifacts/${appId}/public/data/shared_scores`, challengedShareId);
-                    const sharedScoreDoc = await getDoc(sharedScoreRef);
-
-                    if (sharedScoreDoc.exists()) {
-                        const data = sharedScoreDoc.data();
-                        const challengeAttempts = data.challengeAttempts || [];
-                        challengeAttempts.push({
+                    const sharedScores = JSON.parse(localStorage.getItem('sharedQuizScores') || '{}');
+                    if (sharedScores[challengedShareId]) {
+                        sharedScores[challengedShareId].challengeAttempts = sharedScores[challengedShareId].challengeAttempts || [];
+                        sharedScores[challengedShareId].challengeAttempts.push({
                             challengerName: userName,
                             challengerScore: score,
                             didBeat: didBeat,
-                            challengedByUserId: currentUserId, // Store the ID of the challenger
-                            challengedSharerId: challengedShareId, // Store the ID of the score being challenged
-                            timestamp: new Date()
+                            challengedSharerName: challengedSharerName, // Add this for clarity in simulated data
+                            challengedSharerScore: challengedSharerScore, // Add this for clarity in simulated data
+                            timestamp: new Date().toISOString()
                         });
-                        await updateDoc(sharedScoreRef, { challengeAttempts: challengeAttempts });
-                        console.log("Challenge attempt recorded successfully.");
+                        localStorage.setItem('sharedQuizScores', JSON.stringify(sharedScores));
+                        console.log("Simulated challenge attempt recorded successfully.");
+                        console.log("Current localStorage shared scores:", sharedScores);
                     } else {
-                        console.warn("Challenged shared score document not found:", challengedShareId);
+                        console.warn("Challenged shared score not found in localStorage for recording attempt.");
                     }
                 } catch (error) {
-                    console.error("Error recording challenge attempt:", error);
-                    showModalMessage("Error recording challenge outcome. Please check your internet connection.");
+                    console.error("Error recording simulated challenge attempt:", error);
+                    showModalMessage("Error recording challenge outcome locally. Please check your browser settings.");
                 }
 
                 // Reset challenge parameters after displaying outcome
@@ -666,32 +614,23 @@
                 challengedSharerScore = null;
 
             } else {
-                // If not a challenge, save the score for sharing
-                await saveScoreForSharing();
+                // If not a challenge, save the score for sharing (simulated)
+                saveScoreForSharing();
             }
         }
 
-        async function saveScoreForSharing() {
-            if (!db || !currentUserId) {
-                console.error("Firestore not initialized or user not authenticated.");
-                showModalMessage("Cannot save score for sharing. Please ensure you are online and try again.");
-                return;
-            }
-
-            try {
-                const sharedScoresCollection = collection(db, `artifacts/${appId}/public/data/shared_scores`);
-                const newDocRef = await addDoc(sharedScoresCollection, {
-                    sharerName: userName,
-                    sharerScore: score,
-                    sharerUserId: currentUserId, // Store the ID of the sharer
-                    timestamp: new Date()
-                });
-                currentShareId = newDocRef.id; // Store the ID of the newly created document
-                console.log("Score saved for sharing with ID:", currentShareId);
-            } catch (error) {
-                console.error("Error saving score for sharing:", error);
-                showModalMessage("Error saving your score for sharing. Please try again.");
-            }
+        function saveScoreForSharing() {
+            // SIMULATED: Generate a unique ID and save to localStorage
+            currentShareId = crypto.randomUUID();
+            const sharedScores = JSON.parse(localStorage.getItem('sharedQuizScores') || '{}');
+            sharedScores[currentShareId] = {
+                sharerName: userName,
+                sharerScore: score,
+                timestamp: new Date().toISOString(),
+                challengeAttempts: [] // Initialize an empty array for challenge attempts
+            };
+            localStorage.setItem('sharedQuizScores', JSON.stringify(sharedScores));
+            console.log("Simulated score saved for sharing with ID:", currentShareId);
         }
 
         function resetQuiz() {
@@ -709,9 +648,9 @@
 
         // --- Share Functions ---
         function getShareUrl() {
-            // Use window.location.origin to get the base URL of the current page
-            // This ensures the link works correctly in different environments
-            return `${window.location.origin}${window.location.pathname}?challengeId=${currentShareId}`;
+            // Encode the name and score directly into the URL for simulation
+            // This makes the link self-contained for basic demo purposes
+            return `${window.location.origin}${window.location.pathname}?challengeName=${encodeURIComponent(userName)}&challengeScore=${score}&challengeId=${currentShareId}`;
         }
 
         function getShareText() {
@@ -763,56 +702,37 @@
         });
 
         // --- Challenge Logic ---
-        async function checkChallengeInUrl() {
+        function checkChallengeInUrl() {
             const urlParams = new URLSearchParams(window.location.search);
-            const challengeId = urlParams.get('challengeId');
+            const challengeIdFromUrl = urlParams.get('challengeId');
+            const challengeNameFromUrl = urlParams.get('challengeName');
+            const challengeScoreFromUrl = urlParams.get('challengeScore');
 
-            if (challengeId && db) {
-                try {
-                    const sharedScoreRef = doc(db, `artifacts/${appId}/public/data/shared_scores`, challengeId);
-                    const sharedScoreDoc = await getDoc(sharedScoreRef);
+            if (challengeIdFromUrl && challengeNameFromUrl && challengeScoreFromUrl !== null) {
+                // If parameters are in the URL, use them directly for simulation
+                challengedShareId = challengeIdFromUrl;
+                challengedSharerName = decodeURIComponent(challengeNameFromUrl);
+                challengedSharerScore = parseInt(challengeScoreFromUrl);
 
-                    if (sharedScoreDoc.exists()) {
-                        const data = sharedScoreDoc.data();
-                        challengedShareId = challengeId;
-                        challengedSharerName = data.sharerName;
-                        challengedSharerScore = data.sharerScore;
+                // Display challenge intro screen
+                startScreen.classList.add('hidden');
+                quizScreen.classList.add('hidden');
+                scoreCard.classList.add('hidden');
+                challengeIntroScreen.classList.remove('hidden');
+                quizAppContainer.classList.add('show');
 
-                        // Display challenge intro screen
-                        startScreen.classList.add('hidden');
-                        quizScreen.classList.add('hidden');
-                        scoreCard.classList.add('hidden');
-                        challengeIntroScreen.classList.remove('hidden');
-                        quizAppContainer.classList.add('show');
-
-                        challengerNameDisplay.textContent = challengedSharerName;
-                        challengerScoreDisplay.textContent = challengedSharerScore;
-                    } else {
-                        console.warn("Challenge ID not found in Firestore:", challengeId);
-                        // If challenge ID is invalid, just show the normal start screen
-                        startScreen.classList.remove('hidden');
-                        quizAppContainer.classList.add('show');
-                    }
-                } catch (error) {
-                    console.error("Error fetching challenged score:", error);
-                    showModalMessage("Error loading challenge. Please try again.");
-                    startScreen.classList.remove('hidden');
-                    quizAppContainer.classList.add('show');
-                }
+                challengerNameDisplay.textContent = challengedSharerName;
+                challengerScoreDisplay.textContent = challengedSharerScore;
             } else {
-                // No challenge ID, show normal start screen
+                // No challenge parameters, show normal start screen
                 startScreen.classList.remove('hidden');
                 quizAppContainer.classList.add('show');
             }
         }
 
-        // --- Event Listeners ---
-        startButton.addEventListener('click', startGame);
-        startChallengeButton.addEventListener('click', startGame); // Use the same start game logic
-        restartButton.addEventListener('click', resetQuiz);
+        // Initial check for challenge in URL when the page loads
+        window.addEventListener('load', checkChallengeInUrl);
 
-        // Initial check for challenge in URL when Firebase is ready (after auth)
-        // This is handled by the onAuthStateChanged listener in initFirebase
     </script>
 </body>
 </html>
