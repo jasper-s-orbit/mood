@@ -211,7 +211,8 @@
             <h1 class="text-4xl font-bold text-gray-800 mb-6">Challenge Accepted!</h1>
             <div class="challenge-info">
                 <p class="mb-2">You are challenging <span id="challenger-name-display" class="font-bold"></span>'s score of <span id="challenger-score-display" class="font-bold"></span> out of 20.</p>
-                <p>Can you beat it?</p>
+                <p class="mb-4">Enter your name to take on the challenge!</p>
+                <input type="text" id="challenger-name-input" class="input-field" placeholder="Your name" maxlength="30">
             </div>
             <button id="start-challenge-button" class="start-button">Start Challenge</button>
         </div>
@@ -385,10 +386,11 @@
 
         // --- DOM Elements ---
         const startScreen = document.getElementById('start-screen');
-        const userNameInput = document.getElementById('user-name-input');
+        const userNameInput = document.getElementById('user-name-input'); // Initial name input
         const challengeIntroScreen = document.getElementById('challenge-intro-screen');
         const challengerNameDisplay = document.getElementById('challenger-name-display');
         const challengerScoreDisplay = document.getElementById('challenger-score-display');
+        const challengerNameInput = document.getElementById('challenger-name-input'); // New name input for challengers
         const startChallengeButton = document.getElementById('start-challenge-button');
         const quizScreen = document.getElementById('quiz-screen');
         const scoreCard = document.getElementById('score-card');
@@ -447,8 +449,10 @@
         }
 
         // --- Quiz Flow Functions ---
-        function startGame() {
-            userName = userNameInput.value.trim();
+        function startGame(isChallenge = false) {
+            let nameInputSource = isChallenge ? challengerNameInput : userNameInput;
+            userName = nameInputSource.value.trim();
+
             if (!userName) {
                 showModalMessage("Please enter your name to start the quiz!");
                 return;
@@ -650,7 +654,8 @@
             quizAppContainer.classList.remove('show');
             quizAppContainer.style.opacity = '0';
             quizAppContainer.style.transform = 'translateY(20px)';
-            userNameInput.value = ""; // Clear name input
+            userNameInput.value = ""; // Clear name input for initial screen
+            challengerNameInput.value = ""; // Clear name input for challenge screen
             startScreen.classList.remove('hidden');
             challengeOutcomeMessage.classList.add('hidden'); // Hide challenge outcome message
             setTimeout(() => {
@@ -721,7 +726,6 @@
             const challengeScoreFromUrl = urlParams.get('challengeScore');
 
             if (challengeIdFromUrl && challengeNameFromUrl && challengeScoreFromUrl !== null) {
-                // If parameters are in the URL, use them directly for simulation
                 challengedShareId = challengeIdFromUrl;
                 challengedSharerName = decodeURIComponent(challengeNameFromUrl);
                 challengedSharerScore = parseInt(challengeScoreFromUrl);
@@ -746,8 +750,10 @@
         window.addEventListener('load', checkChallengeInUrl);
 
         // --- Event Listeners ---
-        startButton.addEventListener('click', startGame);
-        startChallengeButton.addEventListener('click', startGame); // Use the same start game logic
+        // For the initial start button (on the main landing page)
+        startButton.addEventListener('click', () => startGame(false));
+        // For the start challenge button (on the challenge intro page)
+        startChallengeButton.addEventListener('click', () => startGame(true));
         restartButton.addEventListener('click', resetQuiz);
 
     </script>
